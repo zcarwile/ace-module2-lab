@@ -18,6 +18,23 @@ export function b2bOrder () {
     if (utils.isChallengeEnabled(challenges.rceChallenge) || utils.isChallengeEnabled(challenges.rceOccupyChallenge)) {
       const orderLinesData = body.orderLinesData || ''
       try {
+        if (typeof orderLinesData !== 'string') {
+          throw new Error('Blocked due to security policy')
+        }
+
+        const dangerousKeywords = [
+          'constructor', 'process', 'require', 'exec', 'spawn', 'child_process',
+          'Function', 'eval', 'proto', 'global', 'window', 'getPrototypeOf',
+          'Reflect', 'Proxy', 'import'
+        ]
+        const lowerData = orderLinesData.toLowerCase()
+        const hasDangerousKeyword = dangerousKeywords.some(keyword => lowerData.includes(keyword))
+        const hasDangerousChars = orderLinesData.includes('\\\\') || orderLinesData.includes('[') || orderLinesData.includes(']')
+
+        if (hasDangerousKeyword || hasDangerousChars) {
+          throw new Error('Blocked due to security policy')
+        }
+
         const sandbox = { safeEval, orderLinesData }
         vm.createContext(sandbox)
         vm.runInContext('safeEval(orderLinesData)', sandbox, { timeout: 2000 })

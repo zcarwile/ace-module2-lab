@@ -21,6 +21,30 @@ function favicon () {
   return utils.extractFilename(config.get('application.favicon'))
 }
 
+function safeEval (code: string): any {
+  code = code.trim()
+  if (/^[0-9+\-*/%().\s]+$/.test(code)) {
+    try {
+      return Function('return (' + code + ')')()
+    } catch {
+      throw new Error('Invalid arithmetic expression')
+    }
+  }
+  const singleQuoteMatch = code.match(/^'((?:[^'\\]|\\.)*)'$/)
+  if (singleQuoteMatch) {
+    return singleQuoteMatch[1].replace(/\\(.)/g, '$1')
+  }
+  const doubleQuoteMatch = code.match(/^"((?:[^"\\]|\\.)*)"$/)
+  if (doubleQuoteMatch) {
+    return doubleQuoteMatch[1].replace(/\\(.)/g, '$1')
+  }
+  const backtickMatch = code.match(/^`((?:[^`\\$]|\\.|\$(?!{))*)`$/)
+  if (backtickMatch) {
+    return backtickMatch[1].replace(/\\(.)/g, '$1')
+  }
+  throw new Error('Unsafe or unsupported expression')
+}
+
 export function getUserProfile () {
   return async (req: Request, res: Response, next: NextFunction) => {
     let template: string
@@ -58,7 +82,7 @@ export function getUserProfile () {
         if (!code) {
           throw new Error('Username is null')
         }
-        username = eval(code) // eslint-disable-line no-eval
+        username = safeEval(code)
       } catch (err) {
         username = '\\' + username
       }

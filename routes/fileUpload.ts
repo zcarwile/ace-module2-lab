@@ -72,6 +72,11 @@ async function handleXmlUpload ({ file }: Request, res: Response, next: NextFunc
     challengeUtils.solveIf(challenges.deprecatedInterfaceChallenge, () => { return true })
     if (((file?.buffer) != null) && utils.isChallengeEnabled(challenges.deprecatedInterfaceChallenge)) { // XXE attacks in Docker/Heroku containers regularly cause "segfault" crashes
       const data = file.buffer.toString()
+      if (/<!ENTITY\s+[^>]*\b(SYSTEM|PUBLIC)\b/i.test(data) || /<!DOCTYPE\s+[^>]*\b(SYSTEM|PUBLIC)\b/i.test(data) || /<!NOTATION\s+[^>]*\b(SYSTEM|PUBLIC)\b/i.test(data)) {
+        res.status(410)
+        next(new Error('B2B customer complaints via file upload have been deprecated for security reasons (' + file.originalname + ')'))
+        return
+      }
       try {
         const xmlString = await parseXmlString(data)
         challengeUtils.solveIf(challenges.xxeFileDisclosureChallenge, () => { return (utils.matchesEtcPasswdFile(xmlString) || utils.matchesSystemIniFile(xmlString)) })
